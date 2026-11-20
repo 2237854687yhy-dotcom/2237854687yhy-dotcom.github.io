@@ -19,7 +19,7 @@ h3{margin:16px 0 6px;font-size:13px;color:#6fb4e8;letter-spacing:.08em}
 let L=[],cur=0;const $=id=>document.getElementById(id),f=$('f');
 function fx(){f.style.filter=$('th').value;try{localStorage.fx=JSON.stringify([$('th').selectedIndex])}catch(e){}}
 function nocaps(){try{const d=f.contentDocument;if(d&&!d.getElementById('nc')){const st=d.createElement('style');st.id='nc';st.textContent='*{text-transform:none!important}';d.head.appendChild(st);const P=f.contentWindow.CanvasRenderingContext2D.prototype,o=P.fillText;P.fillText=function(t,...r){if(typeof t==='string'&&/^[A-Z][A-Z' .:,\-]{1,}$/.test(t))t=t.toLowerCase();return o.call(this,t,...r)}}}catch(e){}}
-f.addEventListener('load',nocaps);$('th').oninput=fx;try{$('th').selectedIndex=JSON.parse(localStorage.fx)[0]}catch(e){}fx();
+f.addEventListener('load',nocaps);f.addEventListener('load',()=>setTimeout(()=>{try{const nv=[...f.contentDocument.querySelectorAll('[role=radio]')].find(b=>b.textContent.trim()==='Speak');if(nv&&!nv.className.split(' ').includes('on'))nv.click()}catch(e){}},1500));$('th').oninput=fx;try{$('th').selectedIndex=JSON.parse(localStorage.fx)[0]}catch(e){}fx();
 
 
 const PK='lessonPrefs';let PR={};try{PR=JSON.parse(localStorage[PK]||'{}')}catch(e){}
