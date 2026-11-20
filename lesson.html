@@ -12,8 +12,9 @@ h3{margin:16px 0 6px;font-size:13px;color:#6fb4e8;letter-spacing:.08em}
 .zh{color:#7f93a4;font-size:13px}.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 @media(max-width:800px){#app{grid-template-columns:1fr;grid-template-rows:45% 55%}}
 </style>
-<div id=app><div id=left><div class=bar><select id=ls></select><label>语速 <span id=rv>1.0×</span><input id=rate type=range min=.5 max=1.8 step=.05 value=1 style="width:90px"></label><label><input id=zh type=checkbox checked> 中文</label><div class=bar style="margin-top:8px"><label>配色 <select id=th><option value="">原色</option><option value="sepia(.6) hue-rotate(-30deg) saturate(1.5) brightness(1.1)">暖色</option><option value="grayscale(1) brightness(1.15) contrast(1.1)">灰白</option><option value="hue-rotate(110deg) saturate(1.2)">绿色</option></select></label></div></div><div id=list></div></div>
+<div id=app><div id=left><div class=bar><select id=lg><option value=en>英语</option><option value=de>德语</option><option value=ko>韩语</option></select><select id=ls></select><label>语速 <span id=rv>1.0×</span><input id=rate type=range min=.5 max=1.8 step=.05 value=1 style="width:90px"></label><label><input id=zh type=checkbox checked> 中文</label><div class=bar style="margin-top:8px"><label>配色 <select id=th><option value="">原色</option><option value="sepia(.6) hue-rotate(-30deg) saturate(1.5) brightness(1.1)">暖色</option><option value="grayscale(1) brightness(1.15) contrast(1.1)">灰白</option><option value="hue-rotate(110deg) saturate(1.2)">绿色</option></select></label></div></div><div id=list></div></div>
 <div id=wrap><iframe id=f src="index.html" allow="autoplay"></iframe></div></div>
+<script src=ko_ipa.js></script>
 <script>
 let L=[],cur=0;const $=id=>document.getElementById(id),f=$('f');
 function fx(){f.style.filter=$('th').value;try{localStorage.fx=JSON.stringify([$('th').selectedIndex])}catch(e){}}
@@ -21,12 +22,14 @@ function nocaps(){try{const d=f.contentDocument;if(d&&!d.getElementById('nc')){c
 f.addEventListener('load',nocaps);setInterval(nocaps,1500);
 $('th').oninput=fx;try{$('th').selectedIndex=JSON.parse(localStorage.fx)[0]}catch(e){}fx();
 
-fetch('lessons.json').then(r=>r.json()).then(d=>{L=d;$('ls').innerHTML=d.map((l,i)=>`<option value=${i}>${l.title}</option>`).join('');$('ls').value=d.length-1;show(d.length-1)});
+let cl=[];function fillLs(){const g=$('lg').value;cl=L.map((l,i)=>[l,i]).filter(([l])=>(l.lang||'en')===g);$('ls').innerHTML=cl.length?cl.map(([l,i])=>`<option value=${i}>${l.title}</option>`).join(''):'<option>暂无课程</option>';if(cl.length){$('ls').value=cl[cl.length-1][1];show(cl[cl.length-1][1])}else $('list').innerHTML='<p class=zh>这个语言还没有点读课。</p>'}
+fetch('lessons.json').then(r=>r.json()).then(d=>{L=d;try{$('lg').value=localStorage.lg||'en'}catch(e){}fillLs()});
+$('lg').onchange=()=>{try{localStorage.lg=$('lg').value}catch(e){}fillLs()};
 $('rate').oninput=()=>$('rv').textContent=(+$('rate').value).toFixed(2)+'×';$('ls').onchange=e=>show(+e.target.value);$('zh').onchange=()=>document.body.classList.toggle('nozh',!$('zh').checked);
-function show(i){$('list').innerHTML=L[i].sections.map(s=>`<h3>${s.title}</h3>`+s.lines.map(l=>`<div class=ln data-t="${l.en.replace(/"/g,'&quot;')}"><div>${l.en}</div><div class=zh>${l.zh}</div></div>`).join('')).join('')}
+function show(i){$('list').innerHTML=L[i].sections.map(s=>`<h3>${s.title}</h3>`+s.lines.map(l=>`<div class=ln data-lang="${L[i].lang||'en'}" data-t="${l.en.replace(/"/g,'&quot;')}"><div>${l.en}</div>${l.roman?`<div class=zh>${l.roman}</div>`:''}<div class=zh>${l.zh}</div></div>`).join('')).join('')}
 document.head.insertAdjacentHTML('beforeend','<style>.nozh .zh{display:none}</style>');
-$('list').onclick=async e=>{const n=e.target.closest('.ln');if(!n)return;document.querySelectorAll('.ln.on').forEach(x=>x.classList.remove('on'));n.classList.add('on');await say(n.dataset.t)};
-async function say(t){const d=f.contentDocument,w=f.contentWindow;
+$('list').onclick=async e=>{const n=e.target.closest('.ln');if(!n)return;document.querySelectorAll('.ln.on').forEach(x=>x.classList.remove('on'));n.classList.add('on');await say(n.dataset.t,n.dataset.lang)};
+async function say(t,lang){const d=f.contentDocument,w=f.contentWindow;
  const nav=[...d.querySelectorAll('[role=radio],button')].find(b=>b.textContent.trim()==='Speak'&&(b.getAttribute('role')==='radio'||!b.className.includes('act-primary')));
  if(nav&&!nav.className.split(' ').includes('on')&&nav.getAttribute('aria-checked')!=='true'){nav.click();await new Promise(r=>setTimeout(r,700))}
  const t3=[...d.querySelectorAll('label.toggle')].find(l=>l.textContent.trim()==='3D')?.querySelector('input');
@@ -38,5 +41,9 @@ async function say(t){const d=f.contentDocument,w=f.contentWindow;
  let v=1000;for(let i=1;i<T.length;i++)if(x<=T[i][1]){v=T[i-1][0]+(x-T[i-1][1])/(T[i][1]-T[i-1][1])*(T[i][0]-T[i-1][0]);break}
  const rr=[...d.querySelectorAll('input[type=range]')].find(el=>{let p=el.parentElement;for(let i=0;i<4&&p;i++){if(/×/.test(p.textContent))return true;p=p.parentElement}return false});
  if(rr){Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(rr,Math.round(v));rr.dispatchEvent(new w.Event('input',{bubbles:true}))}
+ const chip=[...d.querySelectorAll('button.chip')].find(b=>/text is ipa/i.test(b.textContent));const wantIpa=lang==='ko';
+ if(chip&&chip.classList.contains('on')!==wantIpa){chip.click();await new Promise(r=>setTimeout(r,300))}
+ if(wantIpa)t=koIPA(t);
+ Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype,'value').set.call(ta,t);ta.dispatchEvent(new w.Event('input',{bubbles:true}));
  prim.click()}
 </script>
