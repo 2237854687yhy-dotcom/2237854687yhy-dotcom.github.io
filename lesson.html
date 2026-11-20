@@ -22,10 +22,16 @@ function nocaps(){try{const d=f.contentDocument;if(d&&!d.getElementById('nc')){c
 f.addEventListener('load',nocaps);setInterval(nocaps,1500);
 $('th').oninput=fx;try{$('th').selectedIndex=JSON.parse(localStorage.fx)[0]}catch(e){}fx();
 
-let cl=[];function fillLs(){const g=$('lg').value;cl=L.map((l,i)=>[l,i]).filter(([l])=>(l.lang||'en')===g);$('ls').innerHTML=cl.length?cl.map(([l,i])=>`<option value=${i}>${l.title}</option>`).join(''):'<option>暂无课程</option>';if(cl.length){$('ls').value=cl[cl.length-1][1];show(cl[cl.length-1][1])}else $('list').innerHTML='<p class=zh>这个语言还没有点读课。</p>'}
+
+const PK='lessonPrefs';let PR={};try{PR=JSON.parse(localStorage[PK]||'{}')}catch(e){}
+function savePrefs(){try{localStorage[PK]=JSON.stringify(PR)}catch(e){}}
+['rate','km','zh'].forEach(i=>{const el=$(i);if(PR[i]!==undefined){if(el.type==='checkbox')el.checked=PR[i];else el.value=PR[i]}const h=()=>{PR[i]=el.type==='checkbox'?el.checked:el.value;savePrefs()};el.addEventListener('input',h);el.addEventListener('change',h)});
+$('rv').textContent=(+$('rate').value).toFixed(2)+'×';document.body.classList.toggle('nozh',!$('zh').checked);
+let did3d=!!PR.did3d;
+let cl=[];function fillLs(){const g=$('lg').value;cl=L.map((l,i)=>[l,i]).filter(([l])=>(l.lang||'en')===g);$('ls').innerHTML=cl.length?cl.map(([l,i])=>`<option value=${i}>${l.title}</option>`).join(''):'<option>暂无课程</option>';if(cl.length){const sv=(PR.ls||{})[g];const pick=cl.find(([l,i])=>l.title===sv)||cl[cl.length-1];$('ls').value=pick[1];show(pick[1])}else $('list').innerHTML='<p class=zh>这个语言还没有点读课。</p>'}
 fetch('lessons.json').then(r=>r.json()).then(d=>{L=d;try{$('lg').value=localStorage.lg||'en'}catch(e){}fillLs()});
 $('lg').onchange=()=>{try{localStorage.lg=$('lg').value}catch(e){}fillLs()};
-$('rate').oninput=()=>$('rv').textContent=(+$('rate').value).toFixed(2)+'×';$('ls').onchange=e=>show(+e.target.value);$('zh').onchange=()=>document.body.classList.toggle('nozh',!$('zh').checked);
+$('rate').oninput=()=>$('rv').textContent=(+$('rate').value).toFixed(2)+'×';$('ls').onchange=e=>{show(+e.target.value);PR.ls=PR.ls||{};PR.ls[$('lg').value]=L[+e.target.value].title;savePrefs()};$('zh').onchange=()=>document.body.classList.toggle('nozh',!$('zh').checked);
 function show(i){$('list').innerHTML=L[i].sections.map(s=>`<h3>${s.title}</h3>`+s.lines.map(l=>`<div class=ln data-lang="${L[i].lang||'en'}" data-t="${l.en.replace(/"/g,'&quot;')}"><div>${l.en}</div>${l.roman?`<div class=zh>${l.roman}</div>`:''}<div class=zh>${l.zh}</div></div>`).join('')).join('')}
 document.head.insertAdjacentHTML('beforeend','<style>.nozh .zh{display:none}</style>');
 $('list').onclick=async e=>{const n=e.target.closest('.ln');if(!n)return;document.querySelectorAll('.ln.on').forEach(x=>x.classList.remove('on'));n.classList.add('on');await say(n.dataset.t,n.dataset.lang)};
@@ -37,7 +43,7 @@ async function say(t,lang){const d=f.contentDocument,w=f.contentWindow;
  const nav=[...d.querySelectorAll('[role=radio],button')].find(b=>b.textContent.trim()==='Speak'&&(b.getAttribute('role')==='radio'||!b.className.includes('act-primary')));
  if(nav&&!nav.className.split(' ').includes('on')&&nav.getAttribute('aria-checked')!=='true'){nav.click();await new Promise(r=>setTimeout(r,700))}
  const t3=[...d.querySelectorAll('label.toggle')].find(l=>l.textContent.trim()==='3D')?.querySelector('input');
- if(t3&&!t3.checked){t3.click();await new Promise(r=>setTimeout(r,1500))}
+ if(t3&&!t3.checked&&!did3d){t3.click();await new Promise(r=>setTimeout(r,1500))}did3d=true;PR.did3d=true;savePrefs();
  const ta=d.querySelector('textarea'),prim=d.querySelector('button.act-primary');if(!ta||!prim)return;
  if(/stop/i.test(prim.textContent)){prim.click();await new Promise(r=>setTimeout(r,250))}
  Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype,'value').set.call(ta,t);ta.dispatchEvent(new w.Event('input',{bubbles:true}));
