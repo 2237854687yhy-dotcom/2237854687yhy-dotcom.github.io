@@ -5,14 +5,14 @@ html,body{margin:0;height:100%;background:#000;color:#d8e4ee;font:15px/1.5 -appl
 #app{display:grid;grid-template-columns:minmax(300px,36%) 1fr;height:100%}
 #left{overflow:auto;padding:12px 14px;border-right:1px solid #1d3a52}
 #wrap{overflow:hidden;position:relative;height:100%}iframe{width:100%;height:100%;border:0;transform-origin:var(--ox,55%) var(--oy,60%)}
-select,input{background:#071420;color:#d8e4ee;border:1px solid #1d3a52;border-radius:6px;padding:5px 8px;font:inherit}
+button{background:#071420;color:#d8e4ee;border:1px solid #1d3a52;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}select,input{background:#071420;color:#d8e4ee;border:1px solid #1d3a52;border-radius:6px;padding:5px 8px;font:inherit}
 h3{margin:16px 0 6px;font-size:13px;color:#6fb4e8;letter-spacing:.08em}
 .ln{padding:8px 10px;margin:4px 0;border:1px solid #12293c;border-radius:8px;cursor:pointer}
 .ln:hover{border-color:#3d86bf}.ln.on{border-color:#f5a623;background:#1a1405}
 .zh{color:#7f93a4;font-size:13px}.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 @media(max-width:800px){#app{grid-template-columns:1fr;grid-template-rows:45% 55%}}
 </style>
-<div id=app><div id=left><div class=bar><select id=lg><option value=en>英语</option><option value=de>德语</option><option value=ko>韩语</option></select><select id=ls></select><label>语速 <span id=rv>1.0×</span><input id=rate type=range min=.5 max=1.8 step=.05 value=1 style="width:90px"></label><label><input id=zh type=checkbox checked> 中文</label><div class=bar style="margin-top:8px"><label>韩语 <select id=km><option value=ipa>音标近似</option><option value=sing>内置韩语（唱）</option></select></label><label>配色 <select id=th><option value="">原色</option><option value="sepia(.6) hue-rotate(-30deg) saturate(1.5) brightness(1.1)">暖色</option><option value="grayscale(1) brightness(1.15) contrast(1.1)">灰白</option><option value="hue-rotate(110deg) saturate(1.2)">绿色</option></select></label></div></div><div id=list></div></div>
+<div id=app><div id=left><div class=bar><select id=lg><option value=en>英语</option><option value=de>德语</option><option value=ko>韩语</option></select><select id=ls></select><label>语速 <span id=rv>1.0×</span><input id=rate type=range min=.5 max=1.8 step=.05 value=1 style="width:90px"></label><label><input id=zh type=checkbox checked> 中文</label><button id=imp type=button>导入</button><button id=del type=button style="display:none">删除导入</button><input id=file type=file multiple accept=".html,.htm,.json,.txt,.md,.csv" style="display:none"><div class=bar style="margin-top:8px"><label>韩语 <select id=km><option value=ipa>音标近似</option><option value=sing>内置韩语（唱）</option></select></label><label>配色 <select id=th><option value="">原色</option><option value="sepia(.6) hue-rotate(-30deg) saturate(1.5) brightness(1.1)">暖色</option><option value="grayscale(1) brightness(1.15) contrast(1.1)">灰白</option><option value="hue-rotate(110deg) saturate(1.2)">绿色</option></select></label></div></div><div id=list></div></div>
 <div id=wrap><iframe id=f src="index.html" allow="autoplay"></iframe></div></div>
 <script src=ko_ipa.js></script>
 <script>
@@ -28,11 +28,25 @@ function savePrefs(){try{localStorage[PK]=JSON.stringify(PR)}catch(e){}}
 ['rate','km','zh'].forEach(i=>{const el=$(i);if(PR[i]!==undefined){if(el.type==='checkbox')el.checked=PR[i];else el.value=PR[i]}const h=()=>{PR[i]=el.type==='checkbox'?el.checked:el.value;savePrefs()};el.addEventListener('input',h);el.addEventListener('change',h)});
 $('rv').textContent=(+$('rate').value).toFixed(2)+'×';document.body.classList.toggle('nozh',!$('zh').checked);
 let did3d=!!PR.did3d;
-let cl=[];function fillLs(){const g=$('lg').value;cl=L.map((l,i)=>[l,i]).filter(([l])=>(l.lang||'en')===g);$('ls').innerHTML=cl.length?cl.map(([l,i])=>`<option value=${i}>${l.title}</option>`).join(''):'<option>暂无课程</option>';if(cl.length){const sv=(PR.ls||{})[g];const pick=cl.find(([l,i])=>l.title===sv)||cl[cl.length-1];$('ls').value=pick[1];show(pick[1])}else $('list').innerHTML='<p class=zh>这个语言还没有点读课。</p>'}
-fetch('lessons.json').then(r=>r.json()).then(d=>{L=d;try{$('lg').value=localStorage.lg||'en'}catch(e){}fillLs()});
+let BASE=[],cl=[];function fillLs(){const g=$('lg').value;cl=L.map((l,i)=>[l,i]).filter(([l])=>(l.lang||'en')===g);$('ls').innerHTML=cl.length?cl.map(([l,i])=>`<option value=${i}>${l.title}</option>`).join(''):'<option>暂无课程</option>';if(cl.length){const sv=(PR.ls||{})[g];const pick=cl.find(([l,i])=>l.title===sv)||cl[cl.length-1];$('ls').value=pick[1];show(pick[1])}else $('list').innerHTML='<p class=zh>这个语言还没有点读课。</p>'}
+let IMP=[];try{IMP=JSON.parse(localStorage.importedLessons||'[]')}catch(e){}
+function saveImp(){try{localStorage.importedLessons=JSON.stringify(IMP)}catch(e){alert('存储已满，无法保存导入内容')}}
+fetch('lessons.json').then(r=>r.json()).then(d=>{BASE=d;L=d.concat(IMP);try{$('lg').value=localStorage.lg||'en'}catch(e){}fillLs()});
+
+function normLines(sections){return sections.map(sec=>({title:sec.title||'导入',lines:(sec.lines||[]).map(l=>({en:l.text||l.en||'',zh:l.zh||'',roman:l.roman||''})).filter(l=>l.en)})).filter(sec=>sec.lines.length)}
+function langOf(x,def){x=(x||'').toLowerCase();return x.startsWith('ko')?'ko':x.startsWith('de')?'de':x.startsWith('en')?'en':def}
+function parseFile(name,txt,def){const base=name.replace(/\.[^.]+$/,'');const ext=(name.split('.').pop()||'').toLowerCase();
+ if(ext==='html'||ext==='htm'){const m=txt.match(/const DATA = (?:\/\*DATA_START\*\/)?(\{[\s\S]*?\})(?:\/\*DATA_END\*\/)?;\s*\n/);if(!m)throw Error('没找到点读卡数据');const D=JSON.parse(m[1]);return [{title:D.title||base,lang:langOf(D.lang,def),sections:normLines(D.sections)}]}
+ if(ext==='json'){const D=JSON.parse(txt);const arr=Array.isArray(D)?D:[D];return arr.map(x=>({title:x.title||base,lang:langOf(x.lang,def),sections:normLines(x.sections||[{title:'导入',lines:x.lines||[]}])}))}
+ const lines=txt.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')).map(x=>{const p=x.split(ext==='csv'?',':/\t|\|/).map(y=>y.trim());return {en:p[0],zh:p[1]||'',roman:p[2]||''}});
+ return [{title:base,lang:def,sections:[{title:'导入',lines}]}]}
+$('imp').onclick=()=>$('file').click();
+$('file').onchange=async e=>{const fs=[...e.target.files];let last=null,errs=[];for(const f of fs){try{const r=parseFile(f.name,await f.text(),$('lg').value);for(const l of r){if(!l.sections.length)throw Error('没有可读的句子');l.imported=true;IMP=IMP.filter(x=>!(x.title===l.title&&x.lang===l.lang));IMP.push(l);last=l}}catch(err){errs.push(f.name+'：'+err.message)}}
+ e.target.value='';saveImp();L=BASE.concat(IMP);if(last){$('lg').value=last.lang;try{localStorage.lg=last.lang}catch(_){}PR.ls=PR.ls||{};PR.ls[last.lang]=last.title;savePrefs();fillLs()}if(errs.length)alert('导入失败：\n'+errs.join('\n'))};
+$('del').onclick=()=>{const l=L[+$('ls').value];if(l&&l.imported&&confirm('删除导入的「'+l.title+'」？')){IMP=IMP.filter(x=>x!==l&&!(x.title===l.title&&x.lang===l.lang));saveImp();L=BASE.concat(IMP);fillLs()}};
 $('lg').onchange=()=>{try{localStorage.lg=$('lg').value}catch(e){}fillLs()};
 $('rate').oninput=()=>$('rv').textContent=(+$('rate').value).toFixed(2)+'×';$('ls').onchange=e=>{show(+e.target.value);PR.ls=PR.ls||{};PR.ls[$('lg').value]=L[+e.target.value].title;savePrefs()};$('zh').onchange=()=>document.body.classList.toggle('nozh',!$('zh').checked);
-function show(i){$('list').innerHTML=L[i].sections.map(s=>`<h3>${s.title}</h3>`+s.lines.map(l=>`<div class=ln data-lang="${L[i].lang||'en'}" data-t="${l.en.replace(/"/g,'&quot;')}"><div>${l.en}</div>${l.roman?`<div class=zh>${l.roman}</div>`:''}<div class=zh>${l.zh}</div></div>`).join('')).join('')}
+function show(i){$('del').style.display=L[i].imported?'':'none';$('list').innerHTML=L[i].sections.map(s=>`<h3>${s.title}</h3>`+s.lines.map(l=>`<div class=ln data-lang="${L[i].lang||'en'}" data-t="${l.en.replace(/"/g,'&quot;')}"><div>${l.en}</div>${l.roman?`<div class=zh>${l.roman}</div>`:''}<div class=zh>${l.zh}</div></div>`).join('')).join('')}
 document.head.insertAdjacentHTML('beforeend','<style>.nozh .zh{display:none}</style>');
 $('list').onclick=async e=>{const n=e.target.closest('.ln');if(!n)return;document.querySelectorAll('.ln.on').forEach(x=>x.classList.remove('on'));n.classList.add('on');await say(n.dataset.t,n.dataset.lang)};
 async function say(t,lang){const d=f.contentDocument,w=f.contentWindow;
