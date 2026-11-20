@@ -19,7 +19,7 @@ h3{margin:16px 0 6px;font-size:13px;color:#6fb4e8;letter-spacing:.08em}
 let L=[],cur=0;const $=id=>document.getElementById(id),f=$('f');
 function fx(){f.style.filter=$('th').value;try{localStorage.fx=JSON.stringify([$('th').selectedIndex])}catch(e){}}
 function nocaps(){try{const d=f.contentDocument;if(d&&!d.getElementById('nc')){const st=d.createElement('style');st.id='nc';st.textContent='*{text-transform:none!important}';d.head.appendChild(st);const P=f.contentWindow.CanvasRenderingContext2D.prototype,o=P.fillText;P.fillText=function(t,...r){if(typeof t==='string'&&/^[A-Z][A-Z' .:,\-]{1,}$/.test(t))t=t.toLowerCase();return o.call(this,t,...r)}}}catch(e){}}
-f.addEventListener('load',nocaps);setInterval(nocaps,1500);
+f.addEventListener('load',nocaps);f.addEventListener('load',()=>setTimeout(()=>{try{const nv=[...f.contentDocument.querySelectorAll('[role=radio]')].find(b=>b.textContent.trim()==='Speak');if(nv&&!nv.className.split(' ').includes('on'))nv.click()}catch(e){}},1500));setInterval(nocaps,1500);
 $('th').oninput=fx;try{$('th').selectedIndex=JSON.parse(localStorage.fx)[0]}catch(e){}fx();
 
 
@@ -50,12 +50,11 @@ function show(i){$('del').style.display=L[i].imported?'':'none';$('list').innerH
 document.head.insertAdjacentHTML('beforeend','<style>.nozh .zh{display:none}</style>');
 $('list').onclick=async e=>{const n=e.target.closest('.ln');if(!n)return;document.querySelectorAll('.ln.on').forEach(x=>x.classList.remove('on'));n.classList.add('on');await say(n.dataset.t,n.dataset.lang)};
 async function say(t,lang){const d=f.contentDocument,w=f.contentWindow;
- const mode=(lang==='ko'&&$('km').value==='sing')?'Sing':'Speak';
- {const nv=[...d.querySelectorAll('[role=radio]')].find(b=>b.textContent.trim()===mode);if(nv&&nv.getAttribute('aria-checked')!=='true'&&!nv.className.split(' ').includes('on')){nv.click();await new Promise(r=>setTimeout(r,900))}}
+ const curMode=(()=>{const on=[...d.querySelectorAll('[role=radio]')].find(b=>['Play','Speak','Sing','Bestiary','Beatbox'].includes(b.textContent.trim())&&(b.getAttribute('aria-checked')==='true'||b.className.split(' ').includes('on')));return on?on.textContent.trim():''})();
+ const mode=curMode==='Sing'?'Sing':(curMode==='Speak'&&lang==='ko'&&$('km').value==='sing')?'Sing':'Speak';
+ if(mode!==curMode){const nv=[...d.querySelectorAll('[role=radio]')].find(b=>b.textContent.trim()===mode);if(nv){nv.click();await new Promise(r=>setTimeout(r,900))}}
  if(mode==='Sing'){const ta=d.querySelector('textarea'),prim=d.querySelector('button.act-primary');if(!ta||!prim)return;if(/stop/i.test(prim.textContent)){prim.click();await new Promise(r=>setTimeout(r,250))}
   Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype,'value').set.call(ta,t);ta.dispatchEvent(new w.Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,200));prim.click();return}
- const nav=[...d.querySelectorAll('[role=radio],button')].find(b=>b.textContent.trim()==='Speak'&&(b.getAttribute('role')==='radio'||!b.className.includes('act-primary')));
- if(nav&&!nav.className.split(' ').includes('on')&&nav.getAttribute('aria-checked')!=='true'){nav.click();await new Promise(r=>setTimeout(r,700))}
  const t3=[...d.querySelectorAll('label.toggle')].find(l=>l.textContent.trim()==='3D')?.querySelector('input');
  if(t3&&!t3.checked&&!did3d){t3.click();await new Promise(r=>setTimeout(r,1500))}did3d=true;PR.did3d=true;savePrefs();
  const ta=d.querySelector('textarea'),prim=d.querySelector('button.act-primary');if(!ta||!prim)return;
