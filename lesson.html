@@ -14,7 +14,7 @@ h3{margin:16px 0 6px;font-size:13px;color:#6fb4e8;letter-spacing:.08em}
 </style>
 <button id=lay type=button></button><div id=app><div id=left><div class=bar><select id=lg><option value=en>英语</option><option value=de>德语</option><option value=ko>韩语</option><option value=vi>越南语</option><option value=ja>日语</option></select><select id=ls></select><label>语速 <span id=rv>1.0×</span><input id=rate type=range min=.5 max=1.8 step=.05 value=1 style="width:90px"></label><label><input id=zh type=checkbox checked> 中文</label><button id=imp type=button>导入</button><button id=del type=button style="display:none">删除导入</button><input id=file type=file multiple accept=".html,.htm,.json,.txt,.md,.csv" style="display:none"><div class=bar style="margin-top:8px"><label>韩语 <select id=km><option value=ipa>音标近似</option><option value=raw>韩文原文</option></select></label><label title="画面比声音早时，加大这个值让画面晚一点">画面延迟 <span id=vdv>0</span>ms <input id=vd type=range min=0 max=500 step=10 value=0 style="width:80px"></label><label>配色 <select id=th><option value="">原色</option><option value="sepia(.6) hue-rotate(-30deg) saturate(1.5) brightness(1.1)">暖色</option><option value="grayscale(1) brightness(1.15) contrast(1.1)">灰白</option><option value="hue-rotate(110deg) saturate(1.2)">绿色</option></select></label></div></div><div id=list></div></div>
 <div id=wrap><iframe id=f src="index.html" allow="autoplay"></iframe></div></div>
-<script src=ko_ipa.js></script>
+<script src=ko_ipa.js></script><script src=ja_ko.js></script>
 <script>
 let L=[],cur=0;const $=id=>document.getElementById(id),f=$('f');
 function fx(){f.style.filter=$('th').value;try{localStorage.fx=JSON.stringify([$('th').selectedIndex])}catch(e){}}
@@ -54,15 +54,16 @@ $('file').onchange=async e=>{const fs=[...e.target.files];let last=null,errs=[];
 $('del').onclick=()=>{const l=L[+$('ls').value];if(l&&l.imported&&confirm('删除导入的「'+l.title+'」？')){IMP=IMP.filter(x=>x!==l&&!(x.title===l.title&&x.lang===l.lang));saveImp();L=BASE.concat(IMP);fillLs()}};
 $('lg').onchange=()=>{try{localStorage.lg=$('lg').value}catch(e){}fillLs()};
 $('rate').oninput=()=>$('rv').textContent=(+$('rate').value).toFixed(2)+'×';$('ls').onchange=e=>{show(+e.target.value);PR.ls=PR.ls||{};PR.ls[$('lg').value]=L[+e.target.value].title;savePrefs()};$('zh').onchange=()=>document.body.classList.toggle('nozh',!$('zh').checked);
-function show(i){$('del').style.display=L[i].imported?'':'none';$('list').innerHTML=L[i].sections.map(s=>`<h3>${s.title}</h3>`+s.lines.map(l=>`<div class=ln data-lang="${L[i].lang||'en'}" data-t="${l.en.replace(/"/g,'&quot;')}" data-ipa="${(l.ipa||'').replace(/"/g,'&quot;')}"><div>${l.en}</div>${l.roman?`<div class=zh>${l.roman}</div>`:''}<div class=zh>${l.zh}</div></div>`).join('')).join('')}
+function show(i){$('del').style.display=L[i].imported?'':'none';$('list').innerHTML=L[i].sections.map(s=>`<h3>${s.title}</h3>`+s.lines.map(l=>`<div class=ln data-lang="${L[i].lang||'en'}" data-t="${l.en.replace(/"/g,'&quot;')}" data-ipa="${(l.ipa||'').replace(/"/g,'&quot;')}" data-roman="${(l.roman||'').replace(/"/g,'&quot;')}"><div>${l.en}</div>${l.roman?`<div class=zh>${l.roman}</div>`:''}<div class=zh>${l.zh}</div></div>`).join('')).join('')}
 document.head.insertAdjacentHTML('beforeend','<style>.nozh .zh{display:none}</style>');
-$('list').onclick=async e=>{const n=e.target.closest('.ln');if(!n)return;document.querySelectorAll('.ln.on').forEach(x=>x.classList.remove('on'));n.classList.add('on');await say(n.dataset.t,n.dataset.lang,n.dataset.ipa)};
+$('list').onclick=async e=>{const n=e.target.closest('.ln');if(!n)return;document.querySelectorAll('.ln.on').forEach(x=>x.classList.remove('on'));n.classList.add('on');await say(n.dataset.t,n.dataset.lang,n.dataset.ipa,n.dataset.roman)};
 function hint(m){let h=$('hint');if(!h){h=document.createElement('div');h.id='hint';h.style.cssText='position:fixed;left:14px;bottom:14px;background:#1a1405;border:1px solid #f5a623;color:#f5d48a;padding:8px 12px;border-radius:8px;z-index:9';document.body.appendChild(h)}h.textContent=m;h.style.display='block';clearTimeout(h.t);h.t=setTimeout(()=>h.style.display='none',2500)}
-async function say(t,lang,ipa){const d=f.contentDocument,w=f.contentWindow;
+async function say(t,lang,ipa,roman){const d=f.contentDocument,w=f.contentWindow;
  const curMode=(()=>{const on=[...d.querySelectorAll('[role=radio]')].find(b=>['Play','Speak','Sing','Bestiary','Beatbox'].includes(b.textContent.trim())&&(b.getAttribute('aria-checked')==='true'||b.className.split(' ').includes('on')));return on?on.textContent.trim():''})();
  const mode=curMode;
  if(mode!=='Speak'&&mode!=='Sing'){hint('请先在右侧选择 Speak 或 Sing');return}
- if(mode==='Sing'){const ta=d.querySelector('textarea'),prim=d.querySelector('button.act-primary');if(!ta||!prim)return;if(/stop/i.test(prim.textContent)){prim.click();await new Promise(r=>setTimeout(r,250))}
+ if(mode==='Sing'){if(lang==='ja'&&roman)t=jaHangul(roman);else if(lang==='vi')t=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D');
+  const ta=d.querySelector('textarea'),prim=d.querySelector('button.act-primary');if(!ta||!prim)return;if(/stop/i.test(prim.textContent)){prim.click();await new Promise(r=>setTimeout(r,250))}
   Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype,'value').set.call(ta,t);ta.dispatchEvent(new w.Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,200));prim.click();return}
  const ta=d.querySelector('textarea'),prim=d.querySelector('button.act-primary');if(!ta||!prim)return;
  if(/stop/i.test(prim.textContent)){prim.click();await new Promise(r=>setTimeout(r,250))}
