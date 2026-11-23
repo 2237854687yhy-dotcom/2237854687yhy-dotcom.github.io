@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工程实例</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:#111;font:15px/1.5 "Latin Modern Roman","CMU Serif","Times New Roman","Songti SC",serif}
+.bar{position:sticky;top:0;z-index:2;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);border-bottom:1px solid #e6e6e6;padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.bar h1{font-size:17px;font-weight:500;margin:0 6px 0 0;white-space:nowrap}
+select{font:inherit;color:#111;background:#fff;border:0;border-bottom:1px solid #999;padding:3px 2px;max-width:100%;min-width:0;flex:1 1 220px}
+button{font:inherit;background:none;border:0;border-bottom:1px dashed #999;padding:0 1px;color:#555;cursor:pointer;white-space:nowrap}
+button:hover{color:#b3261e;border-bottom-color:#b3261e}
+#desc{flex-basis:100%;font-size:13px;color:#777;margin:0}
+#desc:empty{display:none}
+main{max-width:900px;margin:0 auto}
+iframe{display:block;width:100%;border:0;height:80vh}
+.empty{padding:60px 16px;text-align:center;color:#888}
+#err{flex-basis:100%;color:#b3261e;font-size:13px;margin:0}
+#err:empty{display:none}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>工程实例</h1>
+  <select id="ex" aria-label="选择实例"></select>
+  <button id="imp" type="button">导入</button>
+  <button id="del" type="button" hidden>删除导入</button>
+  <button id="pop" type="button">新窗口打开</button>
+  <input id="file" type="file" accept=".html,.htm" multiple hidden>
+  <p id="desc"></p>
+  <p id="err"></p>
+</div>
+<main id="main"><iframe id="view" title="实例"></iframe></main>
+<script>
+const $ = (id) => document.getElementById(id);
+const view = $("view");
+let BASE = [], IMP = [], blobUrl = null, ro = null;
+
+// imported files live in IndexedDB (pages are ~1 MB each, too big for localStorage)
+const db = new Promise((ok, no) => {
+  const r = indexedDB.open("lab", 1);
+  r.onupgradeneeded = () => r.result.createObjectStore("imports", { keyPath: "id" });
+  r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+});
+const tx = async (mode, fn) => { const d = await db; return new Promise((ok, no) => { const t = d.transaction("imports", mode); const q = fn(t.objectStore("imports")); t.oncomplete = () => ok(q && q.result); t.onerror = () => no(t.error); }); };
+const loadImports = async () => { try { IMP = (await tx("readonly", (s) => s.getAll())) || []; } catch (e) { IMP = []; } };
+
+function all() { return BASE.map((e) => ({ ...e, src: "base" })).concat(IMP.map((e) => ({ ...e, src: "imp" }))); }
+function fill(pick) {
+  const list = all();
+  $("ex").innerHTML = list.length ? list.map((e) => `<option value="${e.id}">${e.src === "imp" ? "（导入）" : ""}${e.title}</option>`).join("") : "<option>还没有实例</option>";
+  const want = pick || new URLSearchParams(location.search).get("e") || (() => { try { return localStorage.labLast; } catch (e) { return null; } })();
+  const hit = list.find((e) => e.id === want) || list[0];
+  if (hit) { $("ex").value = hit.id; show(hit); } else { $("main").innerHTML = '<p class="empty">还没有实例。点“导入”打开本机的实例 HTML 文件。</p>'; }
+}
+function fit() {
+  try {
+    const d = view.contentDocument; if (!d) return;
+    const h = Math.max(d.documentElement.scrollHeight, d.body ? d.body.scrollHeight : 0);
+    if (h && Math.abs(view.offsetHeight - h) > 2) view.style.height = h + "px";
+  } catch (e) { view.style.height = "80vh"; }
+}
+view.addEventListener("load", () => {
+  fit();
+  if (ro) ro.disconnect();
+  try { ro = new ResizeObserver(fit); ro.observe(view.contentDocument.documentElement); } catch (e) {}
+  setTimeout(fit, 600); setTimeout(fit, 2000);
+});
+addEventListener("resize", () => setTimeout(fit, 100));
+function show(e) {
+  $("err").textContent = "";
+  $("desc").textContent = e.desc || (e.src === "imp" ? "导入于 " + e.date + "，只保存在这台设备的浏览器里" : "");
+  $("del").hidden = e.src !== "imp";
+  if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
+  view.style.height = "80vh";
+  if (e.src === "imp") { blobUrl = URL.createObjectURL(new Blob([e.html], { type: "text/html" })); view.src = blobUrl; }
+  else view.src = e.file;
+  document.title = e.title + " · 工程实例";
+  try { localStorage.labLast = e.id; } catch (x) {}
+  const u = new URL(location.href); u.searchParams.set("e", e.id); history.replaceState(null, "", u);
+}
+$("ex").onchange = () => { const e = all().find((x) => x.id === $("ex").value); if (e) show(e); };
+$("pop").onclick = () => { const e = all().find((x) => x.id === $("ex").value); if (!e) return; if (e.src === "imp") window.open(URL.createObjectURL(new Blob([e.html], { type: "text/html" }))); else window.open(e.file); };
+$("imp").onclick = () => $("file").click();
+$("file").onchange = async (ev) => {
+  const errs = []; let last = null;
+  for (const f of ev.target.files) {
+    try {
+      const html = await f.text();
+      if (!/<html|<svg|<body/i.test(html)) throw Error("不是 HTML 页面");
+      const t = (html.match(/<title>([^<]*)<\/title>/i) || [])[1];
+      const title = (t && t.trim()) || f.name.replace(/\.html?$/i, "");
+      const id = "imp-" + f.name.replace(/\.html?$/i, "").replace(/[^\w一-龥-]+/g, "-");
+      const rec = { id, title, html, date: new Date().toISOString().slice(0, 10) };
+      await tx("readwrite", (s) => s.put(rec));
+      last = id;
+    } catch (e) { errs.push(f.name + "：" + e.message); }
+  }
+  ev.target.value = "";
+  await loadImports(); fill(last || $("ex").value);
+  $("err").textContent = errs.join("；");
+};
+$("del").onclick = async () => {
+  const id = $("ex").value; const e = IMP.find((x) => x.id === id); if (!e) return;
+  if (!confirm("从这台设备删除导入的“" + e.title + "”？")) return;
+  await tx("readwrite", (s) => s.delete(id)); await loadImports(); fill();
+};
+Promise.all([fetch("examples.json", { cache: "no-cache" }).then((r) => r.json()).catch(() => []), loadImports()]).then(([d]) => { BASE = d; fill(); });
+</script>
+</body>
+</html>

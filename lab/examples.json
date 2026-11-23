@@ -1,0 +1,9 @@
+[
+  {
+    "id": "motor-bench",
+    "title": "电机实验台：三相 / 单相",
+    "file": "examples/motor-bench.html",
+    "date": "2026-11-23",
+    "desc": "市电 → 变压器 → 变频器 → 换向开关 → 三相异步电机；单相电容电机；公式实时代入"
+  }
+]
