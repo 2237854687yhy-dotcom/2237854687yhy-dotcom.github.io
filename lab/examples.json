@@ -12,5 +12,12 @@
     "file": "examples/single-phase-motor.html",
     "date": "2026-11-23",
     "desc": "单相电容运转电机：可拆开看定子、主副绕组、鼠笼转子；点部件看作用；电容开关看磁场从椭圆变直线"
+  },
+  {
+    "id": "electric-fan",
+    "title": "电风扇怎么工作",
+    "file": "examples/electric-fan.html",
+    "date": "2026-11-23",
+    "desc": "台式电风扇：0–3 档抽头调速、摇头曲柄；转矩—转速图上看工作点怎么随档位移动；风量、功率实时代入"
   }
 ]
