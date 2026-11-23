@@ -949,6 +949,7 @@ function model(st) {
   const dir = st.swap ? -1 : 1;
   const imp = (s) => { const R = R0 + Rr / s, d = R * R + X * X; const g = R / d, b = -X / d - 1 / Xm; const y = Math.hypot(g, b); return { y, pf: g / y }; };
   const out = { f, Vs, V, VL: Math.sqrt(3) * V, ns, phi, dir, s: 1, target: 0, I: 0, pf: 0, P: 0, mode: "run" };
+  out.UL = 400 * a; out.Ilim = st.open ? 0.6 * 18 : 18 * 1.5; out.Iin = 0; out.lam = 0; out.Pin = 0;
   if (f < 0.5 || V < 5) { out.mode = "off"; return out; }
   const cap = 2.5;                           // breakdown torque in rated units, at rated flux
   if (load > cap * phi * phi) {             // load beyond breakdown: stall
@@ -1106,7 +1107,7 @@ function tick(now) {
   drawField();
   tick1(dt, now);
   drawMains(dt);
-  frame = visible ? requestAnimationFrame(tick) : 0;
+  frame = requestAnimationFrame(tick);   // keep the model running even when the drawing is scrolled away
 }
 
 const NS = "http://www.w3.org/2000/svg";
@@ -1373,7 +1374,7 @@ function eq3() {
   L.push(st.open
     ? "I_{in}=\\frac{P_{in}}{U_L\\,\\lambda}=" + v(fx(m.Iin, 1)) + "\\,\\mathrm A,\\quad \\lambda=" + v(m.lam ? fx(m.lam, 2) : "—") + ",\\quad I\\le 0.6\\times18=" + v(fx(m.Ilim, 1)) + "\\,\\mathrm A"
     : "I_{in}=\\frac{P_{in}}{\\sqrt3\\,U_L\\,\\lambda}=" + v(fx(m.Iin, 1)) + "\\,\\mathrm A,\\quad \\lambda=" + v(m.lam ? fx(m.lam, 2) : "—"));
-  return { top: ["n=" + fx(n, 0) + "\\,\\mathrm{rpm}", "\\cos\\varphi=" + (on ? fx(m.pf, 2) : "—")], lines: L, series: [{ value: n, color: "#b3261e", label: "n" }, { value: m.I, color: "#aaa", label: "I" }], max: 1600, ref: { value: m.ns, label: "n<tspan baseline-shift=\"sub\" font-size=\"9\">s</tspan> = " + Math.round(m.ns) + " rpm" }, say: $("msg").textContent };
+  return { top: ["n=" + fx(n, 0) + "\\,\\mathrm{rpm}", "\\cos\\varphi=" + (on ? fx(m.pf, 2) : "—")], lines: L, series: [{ value: n, color: "#b3261e", label: "n" }, { value: m.I, color: "#aaa", label: "I" }], max: Math.max(1600, Math.ceil(m.ns * 1.15 / 500) * 500), ref: { value: m.ns, label: "n<tspan baseline-shift=\"sub\" font-size=\"9\">s</tspan> = " + Math.round(m.ns) + " rpm" }, say: $("msg").textContent };
 }
 function eq1() {
   const m = M1, q = st1, n = Math.abs(speed1), on = m.mode !== "off";
