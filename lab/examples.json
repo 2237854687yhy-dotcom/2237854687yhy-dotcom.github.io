@@ -5,5 +5,12 @@
     "file": "examples/motor-bench.html",
     "date": "2026-11-23",
     "desc": "市电 → 变压器 → 变频器 → 换向开关 → 三相异步电机；单相电容电机；公式实时代入"
+  },
+  {
+    "id": "single-phase-motor",
+    "title": "单相电机构造",
+    "file": "examples/single-phase-motor.html",
+    "date": "2026-11-23",
+    "desc": "单相电容运转电机：可拆开看定子、主副绕组、鼠笼转子；点部件看作用；电容开关看磁场从椭圆变直线"
   }
 ]
